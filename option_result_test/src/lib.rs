@@ -1,7 +1,7 @@
 extern crate core;
 
 #[cfg(test)]
-mod tests {
+mod test_option {
     #[allow(unused_imports)]
     use super::*;
     #[test]
@@ -185,18 +185,24 @@ mod tests {
         println!("test [zip] passed");
     }
     #[test]
-    fn test_xor() {
+    fn test_xor_1() {
         let x: Option<&str> = Some("Hello, world!");
         let y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.xor(y), Some("Hello, world!"));
         // check if it is Some("Hello, world!")
         assert_eq!(y.xor(x), Some("Hello, world!"));
+        println!("test [xor_1] passed");
+    }
+    #[test]
+    fn test_xor_2() {
+        let x: Option<&str> = Some("Hello, world!");
+        let y: Option<&str> = None;
         // check if it is None
         assert_eq!(x.xor(x), None);
         // check if it is None
         assert_eq!(y.xor(y), None);
-        println!("test [xor] passed");
+        println!("test [xor_2] passed");
     }
     #[test]
     fn test_and_then() {
@@ -219,74 +225,114 @@ mod tests {
         println!("test [or_else] passed");
     }
     #[test]
-    fn test_insert() {
+    fn test_insert_1() {
         let mut x: Option<&str> = Some("Hello, world!");
         let mut y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.insert("error"),  &"error");
         // check if it is None
         assert_eq!(y.insert("error"), &"error");
+        println!("test [insert_1] passed");
+    }
+    #[test]
+    fn test_insert_2() {
+        let mut x: Option<&str> = Some("Hello, world!");
+        let mut y: Option<&str> = None;
+        let _ = x.insert("error");
+        let _ = y.insert("error");
         // check if it is Some("error")
         assert_eq!(x, Some("error"));
         // check if it is Some("error")
         assert_eq!(y, Some("error"));
-        println!("test [insert] passed");
+        println!("test [insert_2] passed");
     }
     #[test]
-    fn test_get_or_insert() {
+    fn test_get_or_insert_1() {
         let mut x: Option<&str> = Some("Hello, world!");
         let mut y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.get_or_insert("error"),  &"Hello, world!");
         // check if it is Some("error")
         assert_eq!(y.get_or_insert("error"), &"error");
+        println!("test [get_or_insert_1] passed");
+    }
+    #[test]
+    fn test_get_or_insert_2() {
+        let mut x: Option<&str> = Some("Hello, world!");
+        let mut y: Option<&str> = None;
+        x.get_or_insert("error");
+        y.get_or_insert("error");
         // check if it is Some("Hello, world!")
         assert_eq!(x, Some("Hello, world!"));
         // check if it is Some("error")
         assert_eq!(y, Some("error"));
-        println!("test [get_or_insert] passed");
+        println!("test [get_or_insert_2] passed");
     }
     #[test]
-    fn test_get_or_insert_with() {
+    fn test_get_or_insert_with_1() {
         let mut x: Option<&str> = Some("Hello, world!");
         let mut y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.get_or_insert_with(|| "error"),  &"Hello, world!");
         // check if it is Some("error")
         assert_eq!(y.get_or_insert_with(|| "error"), &"error");
+        println!("test [get_or_insert_with_1] passed");
+    }
+    #[test]
+    fn test_get_or_insert_with_2() {
+        let mut x: Option<&str> = Some("Hello, world!");
+        let mut y: Option<&str> = None;
+        x.get_or_insert_with(|| "error");
+        y.get_or_insert_with(|| "error");
         // check if it is Some("Hello, world!")
         assert_eq!(x, Some("Hello, world!"));
         // check if it is Some("error")
         assert_eq!(y, Some("error"));
-        println!("test [get_or_insert_with] passed");
+        println!("test [get_or_insert_with_2] passed");
     }
     #[test]
-    fn test_take() {
+    fn test_take_1() {
         let mut x: Option<&str> = Some("Hello, world!");
         let mut y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.take(), Some("Hello, world!"));
         // check if it is None
         assert_eq!(y.take(), None);
-        // check if it is None
+        println!("test [take_1] passed");
+    }
+    #[test]
+    fn test_take_2() {
+        let mut x: Option<&str> = Some("Hello, world!");
+        let mut y: Option<&str> = None;
+        x.take();
+        y.take();
+        // check if it is Some("Hello, world!")
         assert_eq!(x, None);
         // check if it is None
         assert_eq!(y, None);
-        println!("test [take] passed");
+        println!("test [take_2] passed");
     }
     #[test]
-    fn test_replace() {
+    fn test_replace_1() {
         let mut x: Option<&str> = Some("Hello, world!");
         let mut y: Option<&str> = None;
         // check if it is Some("Hello, world!")
         assert_eq!(x.replace("error"), Some("Hello, world!"));
         // check if it is Some("error")
         assert_eq!(y.replace("error"), None);
-        // check if it is Some("error")
+        println!("test [replace_1] passed");
+    }
+    #[test]
+    fn test_replace_2() {
+        let mut x: Option<&str> = Some("Hello, world!");
+        let mut y: Option<&str> = None;
+        x.replace("error");
+        y.replace("error");
+        // check if it is Some("Hello, world!")
         assert_eq!(x, Some("error"));
         // check if it is Some("error")
         assert_eq!(y, Some("error"));
-        println!("test [replace] passed");
+        println!("test [replace_2] passed");
     }
     #[test]
     fn test_into_iter() {
@@ -318,5 +364,157 @@ mod tests {
         // check if it is "Hello, world!"
         println!("test [cloned] passed");
     }
+
+}
+#[cfg(test)]
+mod test_result {
+
+    #[allow(unused_imports)]
+    use super::*;
+    #[test]
+    fn test_as_ref() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is Some("Hello, world!")
+        assert_eq!(x.as_ref(), Ok(&"Hello, world!"));
+        // check if it is Some("error")
+        assert_eq!(y.as_ref(), Err(&"error"));
+        println!("test [as_ref] passed");
+    }
+
+    #[test]
+    fn test_as_mut() {
+        let mut x: Result<&str, &str> = Ok("Hello, world!");
+        let mut y: Result<&str, &str> = Err("error");
+        // check if it is Some("Hello, world!")
+        assert_eq!(x.as_mut(), Ok(&mut "Hello, world!"));
+        // check if it is Some("error")
+        assert_eq!(y.as_mut(), Err(&mut "error"));
+        println!("test [as_mut] passed");
+    }
+
+    #[test]
+    #[should_panic(expected = "Err('error') [expect] passed: \"error\"")]
+    fn test_expect() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.expect("Ok('Hello, world!') failed"), "Hello, world!");
+        // check if it is "error"
+        y.expect("Err('error') [expect] passed");
+        println!("test [expect] passed");
+    }
+
+    #[test]
+    #[should_panic(expected = "Result::unwrap()` on an `Err` value: \"error\"")]
+    fn test_unwrap() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.unwrap(), "Hello, world!");
+        // check if it is "error"
+        y.unwrap();
+        println!("test [unwrap] passed");
+    }
+
+    #[test]
+    fn test_unwrap_or_default() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.unwrap_or_default(), "Hello, world!");
+        // check if it is ""
+        assert_eq!(y.unwrap_or_default(), "");
+        println!("test [unwrap_or_default] passed");
+    }
+
+    #[test]
+    #[should_panic(expected = "Ok('Hello, world!') passed: \"Hello, world!\"")]
+    fn test_expect_err() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "error"
+        assert_eq!(y.expect_err("Err('error') [expect] passed"), "error");
+        // check if it panics
+        x.expect_err("Ok('Hello, world!') passed");
+        println!("test [expect_err] passed");
+    }
+
+    #[test]
+    fn test_map() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.map(|s| s.to_uppercase()), Ok("HELLO, WORLD!".to_string()));
+        // check if it is "error"
+        assert_eq!(y.map(|s| s.to_uppercase()), Err("error"));
+        println!("test [map] passed");
+    }
+    #[test]
+    fn test_map_or() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.map_or("default", |s| s), "Hello, world!");
+        // check if it is "default"
+        assert_eq!(y.map_or("default", |s| s), "default");
+        println!("test [map_or] passed");
+    }
+
+    #[test]
+    fn test_map_or_else() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.map_or_else(|_| "default", |s| s), "Hello, world!");
+        // check if it is "default"
+        assert_eq!(y.map_or_else(|_| "default", |s| s), "default");
+        println!("test [map_or_else] passed");
+    }
+
+    #[test]
+    fn test_map_err() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.map_err(|s| s.to_uppercase()), Ok("Hello, world!"));
+        // check if it is "ERROR"
+        assert_eq!(y.map_err(|s| s.to_uppercase()).unwrap_err(), "ERROR");
+        println!("test [map_err] passed");
+    }
+
+    #[test]
+    fn test_and_1() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.and(Ok("foo")), Ok("foo"));
+        // check if it is "error"
+        assert_eq!(y.and(Ok("foo")), Err("error"));
+        println!("test [and_1] passed");
+    }
+
+    #[test]
+    fn test_and_2() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.and::<Result<&str, &str>>(Err("foo")), Err("foo"));
+        // check if it is "error"
+        assert_eq!(y.and::<Result<&str, &str>>(Err("foo")), Err("error"));
+        println!("test [and_2] passed");
+    }
+    #[test]
+    fn test_and_then() {
+        let x: Result<&str, &str> = Ok("Hello, world!");
+        let y: Result<&str, &str> = Err("error");
+        // check if it is "Hello, world!"
+        assert_eq!(x.and_then(|s| Ok(s.to_uppercase())), Ok("HELLO, WORLD!".to_string()));
+        // check if it is "error"
+        assert_eq!(y.and_then(|s| Ok(s.to_uppercase())), Err("error"));
+        println!("test [and_then] passed");
+    }
+
+
 
 }
