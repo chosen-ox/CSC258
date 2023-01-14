@@ -82,9 +82,9 @@ mod test_option {
     #[test]
     fn test_ok_or() {
         let x: Option<&str> = Some("Hello, world!");
+        let y: Option<&str> = None;
         // use assert_eq! to check if it is "Hello, world!"
         assert_eq!(x.ok_or("error"), Ok("Hello, world!"));
-        let y: Option<&str> = None;
         // use assert_eq! to check if it is None
         assert_eq!(y.ok_or("error"), Err("error"));
         println!("test [ok_or] passed");
@@ -92,9 +92,9 @@ mod test_option {
     #[test]
     fn test_ok_or_else() {
         let x: Option<&str> = Some("Hello, world!");
+        let y: Option<&str> = None;
         // use assert_eq! to check if it is "Hello, world!"
         assert_eq!(x.ok_or_else(||"error"), Ok("Hello, world!"));
-        let y: Option<&str> = None;
         // use assert_eq! to check if it is None
         assert_eq!(y.ok_or_else(||"error"), Err("error"));
         println!("test [ok_or_else] passed");
@@ -121,8 +121,8 @@ mod test_option {
     fn test_filter() {
         let x: Option<&str> = Some("Hello, world!");
         // use assert_eq! to check if it is Some("Hello, world!")
-        assert_eq!(x.filter(|&x| x == "Hello, world!"), Some("Hello, world!"));
-        assert_eq!(x.filter(|&x| x == "error"), None);
+        assert_eq!(x.filter(|x| x == &"Hello, world!"), Some("Hello, world!"));
+        assert_eq!(x.filter(|x| x == &"error"), None);
         let y: Option<&str> = Some("Hello, world!");
         // use assert_eq! to check if it is None
         assert_eq!(y.filter(|&x| x == "error"), None);
@@ -130,9 +130,9 @@ mod test_option {
     }
     #[test]
     fn test_flatten() {
-        let x: Option<Option<&str>> = Some(Some("Hello, world!"));
+        let x: Option<Option<Option<&str>>> = Some(Some(Some("Hello, world!")));
         // use assert_eq! to check if it is Some("Hello, world!")
-        assert_eq!(x.flatten(), Some("Hello, world!"));
+        assert_eq!(x.flatten().flatten(), Some("Hello, world!"));
         let y: Option<Option<&str>> = Some(None);
         // use assert_eq! to check if it is None
         assert_eq!(y.flatten(), None);
@@ -433,7 +433,7 @@ mod test_result {
         // check if it is "Hello, world!"
         assert_eq!(x.map_err(|s| s.to_uppercase()), Ok("Hello, world!"));
         // check if it is "ERROR"
-        assert_eq!(y.map_err(|s| s.to_uppercase()).unwrap_err(), "ERROR");
+        assert_eq!(y.map_err(|s| s.to_uppercase()), Err::<_, String>("ERROR".to_string()));
         println!("test [map_err] passed");
     }
 
