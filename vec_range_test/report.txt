@@ -1,0 +1,6 @@
+Jiakun Fan
+csc258
+elective methods used: any chain partition try_fold
+total number of test function: 10
+the numebr of tests: 36
+
