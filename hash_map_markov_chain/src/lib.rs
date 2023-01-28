@@ -184,13 +184,42 @@ pub struct Chain<T> where T: Eq+Hash+Clone {
     graph : HashMap<T, HashMap<T, u32>>,
 }
 
+impl Chain<String> {
+    pub fn train_str(&mut self, string: &str) {
+        let mut words = string.split_whitespace();
+        let prev = words.next();
+        if let Some(prev) = prev {
+            let mut prev = prev.to_string();
+            for word in words {
+                self.train(&[prev , word.to_string()]);
+                prev = word.to_string();
+            }
+        }
+    }
+
+    pub fn generate_str(&mut self, length: usize) -> String {
+        let mut words = vec![];
+        let word = self.generate(length);
+        word.iter().for_each(|w| words.push(w.clone()));
+        words.join(" ")
+    }
+
+    pub fn generate_str_from_seed(&mut self, seed: &str,length: usize) -> String {
+        let mut words = vec![];
+        let word = self.generate_from_seed(&seed.to_string(), length);
+        word.iter().for_each(|w| words.push(w.clone()));
+        words.join(" ")
+    }
+
+}
+
 impl <T> Chain<T> where T: Eq+Hash+Clone {
     pub fn new() -> Chain<T> {
         Chain { graph: HashMap::new() }
     }
 
     pub fn add(&mut self, from: T, to: T) {
-        let mut from_map = self.graph.entry(from).or_insert(HashMap::new());
+        let from_map = self.graph.entry(from).or_insert(HashMap::new());
         let count = from_map.entry(to).or_default();
         *count += 1;
     }
@@ -232,25 +261,57 @@ impl <T> Chain<T> where T: Eq+Hash+Clone {
 }
 
 #[cfg(test)]
-mod tt {
-    use std::collections::HashMap;
+mod markov_chain_tests {
     use crate::Chain;
     #[test]
-    fn main() {
+    fn test_train() {
         let mut chain = Chain::<i32>::new();
-        chain.train(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1 ,3]).train(&[5, 6, 10]);
-        let array = chain.generate_from_seed( &3, 10);
-        println!("{:?}", array);
+        chain.train(&[1, 2, 3, 4, 5]).train(&[1, 3, 4, 5, 6]);
 
-        let mut chain = Chain::<&str>::new();
-        chain.train(&["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "a", "c"]);
-        let array = chain.generate_from_seed( &"a", 10);
-        println!("{:?}", array);
+        let vec = chain.generate_from_seed(&1, 5);
+
+        print!("vec: {:?}", vec);
+        assert!(vec == vec![1, 3, 4, 5, 6] || vec == vec![1, 2, 3, 4, 5]);
 
         let mut chain = Chain::<String>::new();
-        chain.train(&[String::from("I"), String::from("love"), String::from("you")]);
-        let array = chain.generate_from_seed( &String::from("I"), 10);
-        assert_eq!(array, vec![String::from("I"), String::from("love"), String::from("you")]);
+        chain.train_str("I am Sam Sam I am");
+        let string = chain.generate_str_from_seed("I",4);
+        assert!(string == "I am Sam Sam" || string == "I am Sam I");
+    }
 
+    #[test]
+    fn test_most_likely_after() {
+        let mut chain = Chain::<i32>::new();
+        chain.train(&[1, 2, 3, 4, 5])
+            .train(&[1, 3, 4, 5, 6])
+            .train(&[3, 5])
+            .train(&[3, 5])
+            .train(&[3, 5]);
+
+        assert!(chain.most_likely_after(&1) == Some(&2) ||
+            chain.most_likely_after(&1) == Some(&3));
+        assert_eq!(chain.most_likely_after(&2), Some(&3));
+        assert_eq!(chain.most_likely_after(&3), Some(&5));
+        assert_eq!(chain.most_likely_after(&4), Some(&5));
+        assert_eq!(chain.most_likely_after(&5), Some(&6));
+        assert_eq!(chain.most_likely_after(&6), None);
+
+        let mut chain = Chain::<&str>::new();
+        chain.train(&["I", "am", "Sam", "Sam", "I", "am"])
+            .train(&["I", "am", "Sam", "I", "am"]);
+
+        assert!(chain.most_likely_after(&"I") == Some(&"am") ||
+            chain.most_likely_after(&"I") == Some(&"Sam"));
+        assert_eq!(chain.most_likely_after(&"am"), Some(&"Sam"));
+        assert_eq!(chain.most_likely_after(&"Sam"), Some(&"I"));
+    }
+
+    // run the tests multiple times to make sure the results are random
+    #[test]
+    fn test_multiple_times() {
+        for _ in 0..1000{
+            test_most_likely_after();
+            test_train();
+        }
     }
 }
