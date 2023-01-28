@@ -265,7 +265,12 @@ mod markov_chain_tests {
     use crate::Chain;
     #[test]
     fn test_train() {
+
         let mut chain = Chain::<i32>::new();
+        // boundary test
+        chain.train(&[]);
+        assert!(chain.graph.is_empty());
+
         chain.train(&[1, 2, 3, 4, 5]).train(&[1, 3, 4, 5, 6]);
 
         let vec = chain.generate_from_seed(&1, 5);
@@ -274,6 +279,10 @@ mod markov_chain_tests {
         assert!(vec == vec![1, 3, 4, 5, 6] || vec == vec![1, 2, 3, 4, 5]);
 
         let mut chain = Chain::<String>::new();
+        // boundary test
+        chain.train_str("");
+        assert!(chain.graph.is_empty());
+
         chain.train_str("I am Sam Sam I am");
         let string = chain.generate_str_from_seed("I",4);
         assert!(string == "I am Sam Sam" || string == "I am Sam I");
