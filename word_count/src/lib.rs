@@ -27,7 +27,7 @@ mod sequential_word_count {
         let mut article = String::new();
         for _ in 0..1000000 {
             let rng = rand::thread_rng();
-            let word :String = rng.sample_iter(&Alphanumeric).map(|x| x as char).take(5).collect::<String>();
+            let word :String = rng.sample_iter(&Alphanumeric).filter(|u| u >= &65u8).map(|u| u as char).take(5).collect::<String>();
             origin_map.entry(word.clone())
                 .and_modify(|e| *e += 1)
                 .or_insert(1);
@@ -36,5 +36,6 @@ mod sequential_word_count {
         }
         let map = word_count(&article);
         assert!(map.eq(&origin_map));
+
     }
 }
