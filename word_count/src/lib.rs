@@ -224,7 +224,7 @@ impl Worker {
     }
 }
 
-mod test_thread_poll {
+mod thread_pool_word_count {
     use crate::ThreadPool;
     use crate::parallel_word_count::handle_word;
     use std::sync::{Arc, RwLock};
@@ -237,14 +237,14 @@ mod test_thread_poll {
         {
             let pool = ThreadPool::new(4);
             let article = article.split_whitespace().collect::<Vec<&str>>();
-            let len = article.len() / 400;
-            for i in 0..399 {
+            let len = article.len() / 40;
+            for i in 0..39 {
                 let word = article[i * len..(i + 1) * len]
                     .iter().map(|x| x.to_string()).collect::<Vec<String>>();
                 let data_clone = Arc::clone(&data);
                 pool.execute(move || { handle_word(&word, data_clone); });
             }
-            let word = article[399 * len..article.len()]
+            let word = article[39 * len..article.len()]
                 .iter().map(|x| x.to_string()).collect::<Vec<String>>();
             let data_clone = Arc::clone(&data);
             pool.execute(move || { handle_word(&word, data_clone); });

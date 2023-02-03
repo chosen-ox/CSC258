@@ -1,0 +1,12 @@
+CS258
+Jiakun Fan
+write all three tasks
+
+sequential word count: mod sequential_word_count
+parallel word count: mod parallel_word_count
+thread pool word count: mod thread_pool_word_count
+
+How to generate 1000000 words?
+use rng to generate 1000000 random word with fixed length of 5.
+
+
