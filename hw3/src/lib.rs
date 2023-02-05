@@ -270,3 +270,33 @@ mod tests {
         println!("generated seq: {:?}", chain.generate("world", 50));
     }
 }
+fn timed<F : Fn(&[i32]), S : AsRef<str>>(name: S, f : F, input: Vec<i32>) {
+    let mut count = 0;
+    let mut time = 0;
+    for _ in 0..100 {
+        let start = std::time::Instant::now();
+        f(std::hint::black_box(&input));
+        let end = std::time::Instant::now();
+        time += end.duration_since(start).as_nanos();
+        count += input.len();
+    }
+    eprintln!("{} speed: {} tokens/sec", name.as_ref(), (count as f64) * 1.0e9 / (time as f64))
+}
+
+#[test]
+fn benchmark() {
+    use markov::Chain;
+    let n = 1000000;
+    {
+        let a: Vec<i32> = (1i32..=1i32).cycle().take(n).collect();
+        timed("cycle-1", |x| { Chain::new().train(x); }, a);
+    }
+    {
+        let a: Vec<i32> = (1i32..=100i32).cycle().take(n).collect();
+        timed("cycle-100", |x| { Chain::new().train(x); }, a);
+    }
+    {
+        let a: Vec<i32> = (1i32..=10000).cycle().take(n).collect();
+        timed("cycle-10k", |x| { Chain::new().train(x); }, a);
+    }
+}
