@@ -6,11 +6,11 @@ use std::{
 };
 
 
-mod sequential_word_count {
+pub mod sequential_word_count {
     use std::collections::HashMap;
 
     #[allow(dead_code)]
-    fn word_count(article: &str) -> HashMap<String, i64> {
+    pub fn word_count(article: &str) -> HashMap<String, i64> {
         let mut map: HashMap<String, i64> = HashMap::new();
         // let article = article.to_lowercase();
         article.split_whitespace()
@@ -79,14 +79,14 @@ pub mod parallel_word_count {
     }
 
     #[allow(dead_code)]
-    fn word_count(article: &str) -> HashMap<String, i64> {
+    pub fn word_count(article: &str, thread_num: usize) -> HashMap<String, i64> {
         // let article = article.to_lowercase();
         let article = article.split_whitespace().collect::<Vec<&str>>();
         let data = Arc::new(RwLock::new(HashMap::new()));
         let mut handles = vec![];
-        let len = article.len() / 4;
+        let len = article.len() / thread_num;
 
-        for i in 0..3 {
+        for i in 0..thread_num - 1 {
             let word = article[i * len..(i + 1) * len]
                 .iter().map(|x| x.to_string()).collect::<Vec<String>>();
             let data_clone = Arc::clone(&data);
@@ -95,7 +95,7 @@ pub mod parallel_word_count {
             });
             handles.push(Some(handle));
         }
-        let word = article[3 * len..article.len()]
+        let word = article[(thread_num - 1) * len..article.len()]
             .iter().map(|x| x.to_string()).collect::<Vec<String>>();
         let data_clone = Arc::clone(&data);
         let handle = thread::spawn(move || {
@@ -135,7 +135,7 @@ pub mod parallel_word_count {
             article.push_str(&word);
             article.push(' ');
         }
-        let map = word_count(&article);
+        let map = word_count(&article, 4);
         // println!("{:?}", map);
         // println!("{:?}", origin_map);
         assert!(map.eq(&origin_map));
@@ -280,4 +280,47 @@ mod thread_pool_word_count {
     }
 }
 
+use std::collections::HashMap;
+#[allow(dead_code)]
+fn timed<F : Fn(&str) ->HashMap<String, i64>, S : AsRef<str>>(name: S, f : F, input: &str) {
+    // let mut count = 0;
+    let mut time = 0;
+    for _ in 0..100 {
+        let start = std::time::Instant::now();
+        f(std::hint::black_box(&input));
+        let end = std::time::Instant::now();
+        time += end.duration_since(start).as_nanos();
+        // count += input.len();
+    }
+    // eprintln!("{} speed: {} tokens/sec", name.as_ref(), (count as f64) * 1.0e9 / (time as f64))
+    eprintln!("{} time {} second", name.as_ref(), (time as f64) / 1.0e10)
+}
+#[test]
+fn benchmark() {
+    use crate::parallel_word_count::word_count as parallel_word_count;
+    use crate::sequential_word_count::word_count as sequential_word_count;
 
+
+    let s = std::fs::read_to_string("small").unwrap();
+    let m = std::fs::read_to_string("medium").unwrap();
+    let l = std::fs::read_to_string("large").unwrap();
+
+    timed("s-small", |x| {sequential_word_count(x)}, &s );
+    timed("p-small", |x| {parallel_word_count(x, 1)}, &s );
+    timed("p-small", |x| {parallel_word_count(x, 2)}, &s );
+    timed("p-small", |x| {parallel_word_count(x, 4)}, &s );
+    timed("p-small", |x| {parallel_word_count(x, 8)}, &s );
+
+    timed("s-medium", |x| {sequential_word_count(x)}, &m );
+    timed("p-medium", |x| {parallel_word_count(x, 1)}, &m );
+    timed("p-medium", |x| {parallel_word_count(x, 2)}, &m );
+    timed("p-medium", |x| {parallel_word_count(x, 4)}, &m );
+    timed("p-medium", |x| {parallel_word_count(x, 8)}, &m );
+
+    timed("s-large", |x| {sequential_word_count(x)}, &l );
+    timed("p-large", |x| {parallel_word_count(x, 1)}, &l );
+    timed("p-large", |x| {parallel_word_count(x, 2)}, &l );
+    timed("p-large", |x| {parallel_word_count(x, 4)}, &l );
+    timed("p-large", |x| {parallel_word_count(x, 8)}, &l );
+
+}
