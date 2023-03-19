@@ -87,22 +87,22 @@ fn main() {
                 (2 * n * n * n) as f64  / (t2-t1) / 1E6 
             );
         }
-        // let mut d = vec![0f64; n * n];
+        let mut d = vec![0f64; n * n];
 
-        // for i in 0..n {
-        //     for j in 0..n {
-        //         for k in 0..n {
-        //             let idx = i as usize * n + j as usize;
-        //             d[idx] += a[i * n + k] * b[k * n + j];
-        //         }
-        //     }
-        // }
+        for i in 0..n {
+            for j in 0..n {
+                for k in 0..n {
+                    let idx = i as usize * n + j as usize;
+                    d[idx] += a[i * n + k] * b[k * n + j];
+                }
+            }
+        }
 
-        // for i in 0..n * n {
-        //     if c[i] != d[i] {
-        //         println!("{} {} {}", i, c[i], d[i]);
-        //     }
-        // }
+        for i in 0..n * n {
+            if c[i] != d[i] {
+                println!("{} {} {}", i, c[i], d[i]);
+            }
+        }
     } else {
         let c = compute_matrix_multiplication(&a, &b, n, rank as usize * rows, rows);
         world.process_at_rank(0).send(&c);
