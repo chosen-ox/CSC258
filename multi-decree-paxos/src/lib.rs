@@ -58,6 +58,7 @@ pub struct Acceptor {
 
 pub struct Learner {
     kv_store: HashMap<String, String>,
+    proposal_number: u8,
 }
 
 pub trait Role {
@@ -70,6 +71,40 @@ impl Proposer {
         self.f = f;
     }
 
+    pub fn send_prepare(&mut self, msg: &str) -> Option<String> {
+        let msg: Vec<&str> = msg.split("\n").collect();
+        let method = msg[0];
+        let key = msg[1];
+        self.wait_for_promise = true;
+        self.promise_vote_count = 0;
+        self.accepted_vote_count = 0;
+        self.nack_count = 0;
+        self.unaccepted_count = 0;
+        self.proposal_number += 1;
+        println!("from client: {:?}", msg);
+        return if method == "get" {
+            self.proposal_value = (Some(key.to_string()), None);
+            let msg = format!(
+                "{} {} {}",
+                char::from(MsgType::PREPARE as u8),
+                self.proposal_number,
+                key
+            );
+            Some(msg)
+        } else {
+            let value = msg[2];
+            self.proposal_value = (Some(key.to_string()), Some(value.to_string()));
+            let msg = format!(
+                "{} {} {} {}",
+                char::from(MsgType::PREPARE as u8),
+                self.proposal_number,
+                key,
+                value
+            );
+            Some(msg)
+        };
+    }
+
     pub fn reset(&mut self) {
         self.suggested_proposal_number = 0;
         self.suggested_value = (None, None);
@@ -78,10 +113,16 @@ impl Proposer {
         self.wait_for_response = false;
         self.promise_vote_count = 0;
         self.accepted_vote_count = 0;
-        self.proposal_number = 1;
+        // self.proposal_number = 0;
         self.proposal_value = (None, None);
         self.nack_count = 0;
         self.unaccepted_count = 0;
+    }
+}
+
+impl Acceptor {
+    pub fn flush_accepted_value(&mut self) {
+        self.accepted_value = (None, None);
     }
 }
 
@@ -108,7 +149,7 @@ impl Role for Proposer {
             wait_for_promise: false,
             wait_for_accepted: false,
             wait_for_response: false,
-            proposal_number: 1,
+            proposal_number: 0,
             promise_vote_count: 0,
             accepted_vote_count: 0,
             nack_count: 0,
@@ -138,7 +179,7 @@ impl Role for Proposer {
                             self.suggested_value = (Some(key), None);
                         }
                     }
-                    println!("{}",self.f);
+                    // println!("{}", self.f);
 
                     if self.promise_vote_count >= self.f + 1 {
                         println!("Got enough promises");
@@ -186,10 +227,63 @@ impl Role for Proposer {
                     }
                 }
             }
-            MsgType::RESPONSE => {}
-            MsgType::ACCEPTED => {}
-            MsgType::UNACCEPTED => {}
-            MsgType::NACK => {}
+            MsgType::RESPONSE => {
+                println!("response:{}", self.proposal_number);
+                if self.wait_for_response {
+                    let proposal_number = split_msg[0].parse::<u8>().unwrap();
+                    if proposal_number != self.proposal_number {
+                        return None;
+                    }
+                    self.reset();
+                    let response_type = split_msg[1].parse::<u8>().unwrap();
+                    if response_type == 0 {
+                        println!("put successful!");
+                        return Some("put successful!".to_string());
+                    } else if response_type == 1 {
+                        let value = split_msg[2].to_string();
+                        println!("get successful!");
+                        return Some("get successful! value:".to_string() + &value);
+                    } else {
+                        println!("get failed!");
+                        return Some("get failed!".to_string());
+                    }
+                }
+            }
+            MsgType::ACCEPTED => {
+                if self.wait_for_accepted {
+                    self.wait_for_response = true;
+                    let proposal_number = split_msg[0].parse::<u8>().unwrap();
+                    if proposal_number != self.proposal_number {
+                        return None;
+                    }
+                    self.accepted_vote_count += 1;
+                    if self.accepted_vote_count >= self.f + 1 {
+                        self.wait_for_accepted = false;
+                        // self.proposal_number += 1;
+                        self.proposal_value = (None, None);
+                        self.suggested_proposal_number = 0;
+                        self.suggested_value = (None, None);
+                        self.promise_vote_count = 0;
+                        self.accepted_vote_count = 0;
+                        self.nack_count = 0;
+                        self.unaccepted_count = 0;
+                        return None;
+                    }
+                }
+            }
+            MsgType::UNACCEPTED => {
+                self.proposal_number = split_msg[0].parse::<u8>().unwrap();
+            }
+            MsgType::NACK => {
+                self.proposal_number = split_msg[0].parse::<u8>().unwrap();
+                self.proposal_number += 1;
+                let msg = format!(
+                    "{} {}",
+                    char::from(MsgType::PREPARE as u8),
+                    self.proposal_number
+                );
+                self.send_prepare(&msg);
+            }
             _ => {}
         }
         None
@@ -251,7 +345,41 @@ impl Role for Acceptor {
                     return Some(msg);
                 }
             }
-            MsgType::ACCEPT => {}
+            MsgType::ACCEPT => {
+                let proposal_number = split_msg[0].parse().unwrap();
+                if self.promised_proposal_number >= proposal_number {
+                    self.accepted_proposal_number = proposal_number;
+                    let key = split_msg[1].to_string();
+                    return if split_msg.len() == 3 {
+                        let value = split_msg[2].to_string();
+                        self.accepted_value = (Some(key), Some(value));
+                        let msg = format!(
+                            "{} {} {} {}",
+                            char::from(MsgType::ACCEPTED as u8),
+                            proposal_number,
+                            self.accepted_value.0.as_ref().unwrap(),
+                            self.accepted_value.1.as_ref().unwrap(),
+                        );
+                        Some(msg)
+                    } else {
+                        self.accepted_value = (Some(key), None);
+                        let msg = format!(
+                            "{} {} {}",
+                            char::from(MsgType::ACCEPTED as u8),
+                            proposal_number,
+                            self.accepted_value.0.as_ref().unwrap(),
+                        );
+                        Some(msg)
+                    };
+                } else {
+                    let msg = format!(
+                        "{} {}",
+                        char::from(MsgType::UNACCEPTED as u8),
+                        self.promised_proposal_number,
+                    );
+                    return Some(msg);
+                }
+            }
             _ => {}
         }
         None
@@ -261,6 +389,7 @@ impl Role for Acceptor {
 impl Role for Learner {
     fn new() -> Self {
         Learner {
+            proposal_number: 0,
             kv_store: HashMap::new(),
         }
     }
@@ -268,9 +397,44 @@ impl Role for Learner {
         let split_msg: Vec<&str> = msg.split(" ").filter(|&msg| msg != "").collect();
         match msg_type {
             MsgType::ACCEPTED => {
-                let key = split_msg[0].to_string();
-                let value = split_msg[1].to_string();
-                self.kv_store.insert(key, value);
+                let proposal_number = split_msg[0].parse::<u8>().unwrap();
+                if proposal_number > self.proposal_number {
+                    self.proposal_number = proposal_number;
+                    println!("client fuck{:?}", split_msg);
+                    let key = split_msg[1].to_string();
+                    return if split_msg.len() == 3 {
+                        println!("{} {}", key, split_msg[2]);
+                        let value = split_msg[2].to_string();
+                        self.kv_store.insert(key, value);
+                        let msg = format!(
+                            "{} {} {}",
+                            char::from(MsgType::RESPONSE as u8),
+                            proposal_number,
+                            0,
+                        );
+                        Some(msg)
+                    } else {
+                        let value = self.kv_store.get(&key);
+                        return if value.is_some() {
+                            let msg = format!(
+                                "{} {} {} {}",
+                                char::from(MsgType::RESPONSE as u8),
+                                proposal_number,
+                                1,
+                                value.unwrap(),
+                            );
+                            Some(msg)
+                        } else {
+                            let msg = format!(
+                                "{} {} {}",
+                                char::from(MsgType::RESPONSE as u8),
+                                proposal_number,
+                                2,
+                            );
+                            Some(msg)
+                        };
+                    };
+                }
             }
             _ => {}
         }

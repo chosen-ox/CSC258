@@ -22,12 +22,12 @@ fn send_msg(mut stream: &TcpStream, mut msg: String) -> std::io::Result<()> {
             }
             Err(e) => {
                 sleep(std::time::Duration::from_millis(1000));
-                print!("error: {:?}",e);
+                print!("error: {:?}", e);
             }
         }
     }
 
-    sleep(std::time::Duration::from_millis(1000));
+    // sleep(std::time::Duration::from_millis(1000));
     Ok(())
 }
 
@@ -46,11 +46,12 @@ fn broadcast_msg(streams: &Vec<TcpStream>, mut msg: String) -> std::io::Result<(
                 }
                 Err(e) => {
                     sleep(std::time::Duration::from_millis(1000));
+                    print!("error: {:?}", e);
                 }
             }
         }
     }
-    sleep(std::time::Duration::from_millis(1000));
+    // sleep(std::time::Duration::from_millis(1000));
     Ok(())
 }
 
@@ -59,8 +60,6 @@ fn state_machine(
     receive_streams: Vec<TcpStream>,
     send_streams: Vec<TcpStream>,
 ) {
-
-
     let len = receive_streams.len();
     let f = (len / 2) as u8;
 
@@ -69,28 +68,31 @@ fn state_machine(
     let mut learner = Learner::new();
     let mut client = Vec::<TcpStream>::new();
     proposer.set_f(f);
-    let mut ss = 1;
-    loop {
 
-        if listener.local_addr().unwrap()
-            == SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 2030)) && ss == 1
-        {
-            let msg = format!(
-                "{} {} {} {}",
-                char::from(MsgType::PREPARE as u8),
-                "1",
-                "hello",
-                "world"
-            );
-            broadcast_msg(&send_streams, msg).unwrap();
-            ss = 0;
-        }
+    let mut is_leader = false;
+    // let mut ss = 1;
+    loop {
+        // if listener.local_addr().unwrap()
+        //     == SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 2030))
+        //     && ss == 1
+        // {
+        //     let msg = format!(
+        //         "{} {} {} {}",
+        //         char::from(MsgType::PREPARE as u8),
+        //         "1",
+        //         "hello",
+        //         "world"
+        //     );
+        //     broadcast_msg(&send_streams, msg).unwrap();
+        //     ss = 0;
+        // }
         for stream in listener.incoming() {
             match stream {
                 Ok(mut stream) => {
                     client.push(stream);
                 }
                 Err(e) => {
+                    // println!("Error: {}", e);
                     break;
                 }
             }
@@ -108,49 +110,66 @@ fn state_machine(
                     let msg = str::from_utf8(&buffer[1..end]).unwrap().to_owned();
                     println!("Received msg {}", msg);
                     match msg_type {
-                        MsgType::PREPARE | MsgType::ACCEPT => {
+                        MsgType::PREPARE => {
                             if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
                                 send_msg(&send_streams[i], msg).unwrap();
-                                // broadcast_msg(&send_streams, msg).unwrap();
                             }
                         }
-                        MsgType::PROMISE
-                        | MsgType::RESPONSE
-                        | MsgType::NACK
-                        | MsgType::UNACCEPTED => {
+                        MsgType::ACCEPT => {
+                            if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
+                                broadcast_msg(&send_streams, msg).unwrap();
+                            }
+                        }
+                        MsgType::RESPONSE => {
+                            println!("shit: {} ", msg);
+                            acceptor.flush_accepted_value();
+                            if let Some(msg) = proposer.handle_msg(&msg_type, &msg) {
+                            if client.len() > 0 {
+                                let mut stream = client.remove(0);
+                                println!("client msg: {}", msg);
+                                stream.write_all(msg.as_bytes()).unwrap();
+                                stream.shutdown(Shutdown::Both).unwrap();
+                                is_leader = false;
+                            }
+                            }
+                        }
+                        MsgType::PROMISE | MsgType::NACK | MsgType::UNACCEPTED => {
                             if let Some(msg) = proposer.handle_msg(&msg_type, &msg) {
                                 broadcast_msg(&send_streams, msg).unwrap();
                             }
                         }
                         MsgType::ACCEPTED => {
+                            proposer.handle_msg(&msg_type, &msg);
                             if let Some(msg) = learner.handle_msg(&msg_type, &msg) {
-                                broadcast_msg(&send_streams, msg).unwrap();
-                            }
-                            if let Some(msg) = proposer.handle_msg(&msg_type, &msg) {
-                                broadcast_msg(&send_streams, msg).unwrap();
+                                (0..1).for_each(|_| {
+                                    broadcast_msg(&send_streams, msg.clone()).unwrap();
+                                });
                             }
                         }
                         _ => {}
                     }
                 }
-                Err(e) => {
-                    break;
-                }
+                Err(e) => {}
             }
         }
-
-        for mut stream in &client {
-            let mut buffer = [0; 1024];
-            match stream.read(&mut buffer) {
-                Ok(_) => {
-                    let msg_type = MsgType::from(buffer[0]);
-                    let msg = str::from_utf8(&buffer[1..]).unwrap().to_owned();
-                    match msg_type {
-                        _ => {}
+        if is_leader == false {
+            for mut stream in &client {
+                let mut buffer = [0; 1024];
+                match stream.read(&mut buffer) {
+                    Ok(_) => {
+                        let end = buffer
+                            .iter()
+                            .position(|&x| x == b'\0')
+                            .expect("No null byte");
+                        let msg = str::from_utf8(&buffer[..end]).unwrap();
+                        if let Some(msg) = proposer.send_prepare(&msg) {
+                            broadcast_msg(&send_streams, msg).unwrap();
+                        }
+                        is_leader = true;
                     }
-                }
-                Err(e) => {
-                    break;
+                    Err(e) => {
+                        break;
+                    }
                 }
             }
         }
