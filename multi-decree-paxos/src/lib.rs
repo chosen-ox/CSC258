@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::thread::sleep;
+use std::time::Duration;
 
 /* Message Format:
  * PREPARE <proposal_number>
@@ -73,6 +75,7 @@ impl Proposer {
 
     pub fn send_prepare(&mut self, msg: &str) -> Option<String> {
         let msg: Vec<&str> = msg.split("\n").collect();
+        // println!("from client: {:?}", msg);
         let method = msg[0];
         let key = msg[1];
         self.wait_for_promise = true;
@@ -81,28 +84,18 @@ impl Proposer {
         self.nack_count = 0;
         self.unaccepted_count = 0;
         self.proposal_number += 1;
-        println!("from client: {:?}", msg);
-        return if method == "get" {
+        if method == "get" {
             self.proposal_value = (Some(key.to_string()), None);
-            let msg = format!(
-                "{} {} {}",
-                char::from(MsgType::PREPARE as u8),
-                self.proposal_number,
-                key
-            );
-            Some(msg)
         } else {
             let value = msg[2];
             self.proposal_value = (Some(key.to_string()), Some(value.to_string()));
-            let msg = format!(
-                "{} {} {} {}",
-                char::from(MsgType::PREPARE as u8),
-                self.proposal_number,
-                key,
-                value
-            );
-            Some(msg)
         };
+        let msg = format!(
+            "{} {}",
+            char::from(MsgType::PREPARE as u8),
+            self.proposal_number,
+        );
+        Some(msg)
     }
 
     pub fn reset(&mut self) {
@@ -182,7 +175,7 @@ impl Role for Proposer {
                     // println!("{}", self.f);
 
                     if self.promise_vote_count >= self.f + 1 {
-                        println!("Got enough promises");
+                        // println!("Got enough promises");
                         self.wait_for_promise = false;
                         self.wait_for_accepted = true;
                         return if self.suggested_proposal_number == 0 {
@@ -228,8 +221,8 @@ impl Role for Proposer {
                 }
             }
             MsgType::RESPONSE => {
-                println!("response:{}", self.proposal_number);
-                if self.wait_for_response {
+                // println!("response:{}", self.proposal_number);
+                // if self.wait_for_response {
                     let proposal_number = split_msg[0].parse::<u8>().unwrap();
                     if proposal_number != self.proposal_number {
                         return None;
@@ -237,17 +230,17 @@ impl Role for Proposer {
                     self.reset();
                     let response_type = split_msg[1].parse::<u8>().unwrap();
                     if response_type == 0 {
-                        println!("put successful!");
+                        // println!("put successful!");
                         return Some("put successful!".to_string());
                     } else if response_type == 1 {
                         let value = split_msg[2].to_string();
-                        println!("get successful!");
+                        // println!("get successful!");
                         return Some("get successful! value:".to_string() + &value);
                     } else {
-                        println!("get failed!");
+                        // println!("get failed!");
                         return Some("get failed!".to_string());
                     }
-                }
+                // }
             }
             MsgType::ACCEPTED => {
                 if self.wait_for_accepted {
@@ -272,17 +265,34 @@ impl Role for Proposer {
                 }
             }
             MsgType::UNACCEPTED => {
-                self.proposal_number = split_msg[0].parse::<u8>().unwrap();
+                let proposal_number = split_msg[0].parse::<u8>().unwrap();
+                if proposal_number != self.proposal_number {
+                    return None;
+                }
+                // self.proposal_number = split_msg[1].parse::<u8>().unwrap();
+                // self.proposal_number += 1;
+                // println!("unaccepted, new proposal number: {}", self.proposal_number);
             }
             MsgType::NACK => {
-                self.proposal_number = split_msg[0].parse::<u8>().unwrap();
+                let proposal_number = split_msg[0].parse::<u8>().unwrap();
+                if proposal_number != self.proposal_number {
+                    return None;
+                }
+                self.proposal_number = split_msg[1].parse::<u8>().unwrap();
                 self.proposal_number += 1;
+                self.wait_for_promise = true;
+                self.promise_vote_count = 0;
+                self.accepted_vote_count = 0;
+                self.nack_count = 0;
+                self.unaccepted_count = 0;
+                // println!("nack, new proposal number:{}", self.proposal_number);
                 let msg = format!(
                     "{} {}",
                     char::from(MsgType::PREPARE as u8),
                     self.proposal_number
                 );
-                self.send_prepare(&msg);
+                sleep(Duration::from_millis(1000));
+                return Some(msg);
             }
             _ => {}
         }
@@ -304,6 +314,7 @@ impl Role for Acceptor {
         match msg_type {
             MsgType::PREPARE => {
                 let proposal_number = split_msg[0].parse().unwrap();
+                // println!("acceptor receive prepare: {}, current {}", proposal_number, self.promised_proposal_number);
                 if self.promised_proposal_number < proposal_number {
                     self.promised_proposal_number = proposal_number;
                     if self.accepted_value.0.is_some() {
@@ -338,8 +349,9 @@ impl Role for Acceptor {
                     }
                 } else {
                     let msg = format!(
-                        "{} {}",
+                        "{} {} {}",
                         char::from(MsgType::NACK as u8),
+                        proposal_number,
                         self.promised_proposal_number,
                     );
                     return Some(msg);
@@ -347,7 +359,7 @@ impl Role for Acceptor {
             }
             MsgType::ACCEPT => {
                 let proposal_number = split_msg[0].parse().unwrap();
-                if self.promised_proposal_number >= proposal_number {
+                if self.promised_proposal_number <= proposal_number {
                     self.accepted_proposal_number = proposal_number;
                     let key = split_msg[1].to_string();
                     return if split_msg.len() == 3 {
@@ -373,8 +385,9 @@ impl Role for Acceptor {
                     };
                 } else {
                     let msg = format!(
-                        "{} {}",
+                        "{} {} {}",
                         char::from(MsgType::UNACCEPTED as u8),
+                        proposal_number,
                         self.promised_proposal_number,
                     );
                     return Some(msg);
@@ -400,10 +413,9 @@ impl Role for Learner {
                 let proposal_number = split_msg[0].parse::<u8>().unwrap();
                 if proposal_number > self.proposal_number {
                     self.proposal_number = proposal_number;
-                    println!("client fuck{:?}", split_msg);
+                    // println!("client fuck{:?}", split_msg);
                     let key = split_msg[1].to_string();
                     return if split_msg.len() == 3 {
-                        println!("{} {}", key, split_msg[2]);
                         let value = split_msg[2].to_string();
                         self.kv_store.insert(key, value);
                         let msg = format!(

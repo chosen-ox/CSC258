@@ -108,7 +108,7 @@ fn state_machine(
                         .position(|&x| x == b'\n')
                         .expect("No null byte");
                     let msg = str::from_utf8(&buffer[1..end]).unwrap().to_owned();
-                    println!("Received msg {}", msg);
+                    // println!("Received msg {}", msg);
                     match msg_type {
                         MsgType::PREPARE => {
                             if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
@@ -121,12 +121,12 @@ fn state_machine(
                             }
                         }
                         MsgType::RESPONSE => {
-                            println!("shit: {} ", msg);
+                            // println!("shit: {} ", msg);
                             acceptor.flush_accepted_value();
                             if let Some(msg) = proposer.handle_msg(&msg_type, &msg) {
                             if client.len() > 0 {
                                 let mut stream = client.remove(0);
-                                println!("client msg: {}", msg);
+                                // println!("client msg: {}", msg);
                                 stream.write_all(msg.as_bytes()).unwrap();
                                 stream.shutdown(Shutdown::Both).unwrap();
                                 is_leader = false;
@@ -141,7 +141,7 @@ fn state_machine(
                         MsgType::ACCEPTED => {
                             proposer.handle_msg(&msg_type, &msg);
                             if let Some(msg) = learner.handle_msg(&msg_type, &msg) {
-                                (0..1).for_each(|_| {
+                                (0..3).for_each(|_| {
                                     broadcast_msg(&send_streams, msg.clone()).unwrap();
                                 });
                             }
@@ -162,10 +162,12 @@ fn state_machine(
                             .position(|&x| x == b'\0')
                             .expect("No null byte");
                         let msg = str::from_utf8(&buffer[..end]).unwrap();
+                        // println!("from client: {}", msg);
                         if let Some(msg) = proposer.send_prepare(&msg) {
                             broadcast_msg(&send_streams, msg).unwrap();
                         }
                         is_leader = true;
+                        break;
                     }
                     Err(e) => {
                         break;
@@ -182,12 +184,11 @@ fn main() {
         println!("Incorrect usage. Try \" cargo run -- port F\" for valid usage");
     } else if args.len() > 2 {
         let process_num: usize = 2 * args[2].clone().parse::<usize>().unwrap() + 1;
-        let mut ports: Vec<u16> = (0..=process_num)
+        let mut ports: Vec<u16> = (0..process_num-1)
             .map(|_| pick_unused_port().expect("No ports free"))
             .collect();
         ports.insert(0, args[1].clone().parse().unwrap());
 
-        println!("Starting {} processes", process_num);
         let mut listeners: Vec<TcpListener> = ports
             .iter()
             .map(|&port| {
