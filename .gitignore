@@ -1,3 +1,6 @@
 .idea
 *.zip
+*.pdf
+*.txt
+target/
 
