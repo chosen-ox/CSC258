@@ -26,16 +26,10 @@ fn send_msg(mut stream: &TcpStream, mut msg: String) -> std::io::Result<()> {
             }
         }
     }
-
-    // sleep(std::time::Duration::from_millis(1000));
     Ok(())
 }
 
 fn broadcast_msg(streams: &Vec<TcpStream>, mut msg: String) -> std::io::Result<()> {
-    // msg.push("\n".to_string());
-    // let msg = msg.join(" ");
-    // let whole_msg = format!("{} {}", char::from(msg_type as u8), msg);
-    // println!("broadcasting: {}", whole_msg);
     msg.push('\n');
     for mut stream in streams {
         loop {
@@ -51,7 +45,6 @@ fn broadcast_msg(streams: &Vec<TcpStream>, mut msg: String) -> std::io::Result<(
             }
         }
     }
-    // sleep(std::time::Duration::from_millis(1000));
     Ok(())
 }
 
@@ -70,29 +63,13 @@ fn state_machine(
     proposer.set_f(f);
 
     let mut is_leader = false;
-    // let mut ss = 1;
     loop {
-        // if listener.local_addr().unwrap()
-        //     == SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 2030))
-        //     && ss == 1
-        // {
-        //     let msg = format!(
-        //         "{} {} {} {}",
-        //         char::from(MsgType::PREPARE as u8),
-        //         "1",
-        //         "hello",
-        //         "world"
-        //     );
-        //     broadcast_msg(&send_streams, msg).unwrap();
-        //     ss = 0;
-        // }
         for stream in listener.incoming() {
             match stream {
                 Ok(mut stream) => {
                     client.push(stream);
                 }
                 Err(e) => {
-                    // println!("Error: {}", e);
                     break;
                 }
             }
@@ -108,7 +85,6 @@ fn state_machine(
                         .position(|&x| x == b'\n')
                         .expect("No null byte");
                     let msg = str::from_utf8(&buffer[1..end]).unwrap().to_owned();
-                    // println!("Received msg {}", msg);
                     match msg_type {
                         MsgType::PREPARE => {
                             if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
@@ -121,12 +97,10 @@ fn state_machine(
                             }
                         }
                         MsgType::RESPONSE => {
-                            // println!("shit: {} ", msg);
                             acceptor.flush_accepted_value();
                             if let Some(msg) = proposer.handle_msg(&msg_type, &msg) {
                             if client.len() > 0 {
                                 let mut stream = client.remove(0);
-                                // println!("client msg: {}", msg);
                                 stream.write_all(msg.as_bytes()).unwrap();
                                 stream.shutdown(Shutdown::Both).unwrap();
                                 is_leader = false;
@@ -162,7 +136,6 @@ fn state_machine(
                             .position(|&x| x == b'\0')
                             .expect("No null byte");
                         let msg = str::from_utf8(&buffer[..end]).unwrap();
-                        // println!("from client: {}", msg);
                         if let Some(msg) = proposer.send_prepare(&msg) {
                             broadcast_msg(&send_streams, msg).unwrap();
                         }
@@ -206,11 +179,6 @@ fn main() {
                 let mut streams = (0..process_num)
                     .map(|j| TcpStream::connect(("127.0.0.1", ports[j])).unwrap())
                     .collect::<Vec<_>>();
-                // streams.iter().for_each(|stream| {
-                //     stream
-                //         .set_nonblocking(true)
-                //         .expect("Cannot set non-blocking");
-                // });
                 streams
             })
             .collect();
