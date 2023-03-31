@@ -93,9 +93,7 @@ fn state_machine(
                         }
                         MsgType::ACCEPT => {
                             if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
-                                (0..3).for_each(|_| {
-                                    broadcast_msg(&send_streams, msg.clone()).unwrap();
-                                });
+                                broadcast_msg(&send_streams, msg.clone()).unwrap();
                             }
                         }
                         MsgType::RESPONSE => {
