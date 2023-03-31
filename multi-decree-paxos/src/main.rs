@@ -93,7 +93,9 @@ fn state_machine(
                         }
                         MsgType::ACCEPT => {
                             if let Some(msg) = acceptor.handle_msg(&msg_type, &msg) {
-                                broadcast_msg(&send_streams, msg).unwrap();
+                                (0..3).for_each(|_| {
+                                    broadcast_msg(&send_streams, msg.clone()).unwrap();
+                                });
                             }
                         }
                         MsgType::RESPONSE => {
@@ -154,9 +156,9 @@ fn state_machine(
 fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() < 3 {
-        println!("Incorrect usage. Try \" cargo run -- port F\" for valid usage");
+        println!("Incorrect usage. Try \" cargo run port N\" for valid usage");
     } else if args.len() > 2 {
-        let process_num: usize = 2 * args[2].clone().parse::<usize>().unwrap() + 1;
+        let process_num: usize = args[2].clone().parse::<usize>().unwrap();
         let mut ports: Vec<u16> = (0..process_num-1)
             .map(|_| pick_unused_port().expect("No ports free"))
             .collect();
